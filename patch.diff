@@ -1,0 +1,67 @@
+diff --git a/js-bs-6/handlers.js b/js-bs-6/handlers.js
+index c6965f056f99ccfb1797a4ad7c22e3c5c4fa4226..96a65df557443d1eb48c1935e8c16725995891c3 100644
+--- a/js-bs-6/handlers.js
++++ b/js-bs-6/handlers.js
+@@ -404,55 +404,54 @@ export function bindUiHandlers(dom, state, { updateUrlByMode }) {
+       if (i < state.parsedRows.length - 1) {
+         let left = delayMs;
+         while (left > 0 && state.running) {
+           await waitWhilePaused(state);
+           const step = Math.min(200, left);
+           await sleep(step);
+           left -= step;
+         }
+       }
+     }
+ 
+     state.running = false;
+     state.abortController = null;
+ 
+     dom.btnStop.disabled = true;
+     dom.btnPause.disabled = true;
+     dom.btnPause.textContent = 'Pause';
+     state.paused = false;
+ 
+     appendLog(dom, `Массовая отправка завершена. Ошибок: ${state.errors.length}`, 'info');
+ 
+     if (dom.autoDownloadErrorsEl.checked && state.errors.length) {
+       downloadErrors(dom, state);
+     }
+ 
+-    if (dom.autoClosePeriodsEl?.checked && completedAll && state.errors.length === 0) {
+-      await copyToClipboard(CLOSE_PERIODS_SQL);
+-      appendLog(dom, 'SQL для закрытия периодов скопирован (автоматически после успешной отправки)', 'info');
+-    }
+-  });
++    if (dom.autoClosePeriodsEl?.checked && completedAll && state.errors.length === 0) {
++      await updatePeriods('close', CLOSE_PERIODS_SQL);
++    }
++  });
+ 
+   // Download buttons
+   dom.btnDownloadErrors.addEventListener('click', () => downloadErrors(dom, state));
+   dom.btnDownloadReport.addEventListener('click', () => downloadReport(dom, state));
+ 
+   // Parse file on change
+   dom.csvFile.addEventListener('change', async () => {
+     const f = dom.csvFile.files[0];
+     if (!f) return;
+     const text = await f.text();
+ 
+     let count = 0;
+     if (dom.modeEl.value === 'pan_change') count = parsePanText(text).length;
+     else if (dom.fastExtractEl.checked) count = extractUUIDsFromString(text).length;
+     else {
+       const parsed = parseCSVTextGeneric(text, dom.useFirstColIfHeaderEl.checked);
+       if (parsed.rows) count = parsed.rows.length;
+     }
+ 
+     appendLog(dom, `Файл выбран. Примерно строк: ${count}`, 'info');
+     state.parsedRows = [];
+     state.report = [];
+     state.errors = [];
+     setCounters(dom, state);
+   });
+ 
+EOF
+)
