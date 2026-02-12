@@ -1,0 +1,84 @@
+diff a/js-bs-6/parser/render.js b/js-bs-6/parser/render.js	(rejected hunks)
+@@ -1,44 +1,64 @@
+ // js/parser/render.js
+-export function displayDbResults(dom, data) {
+-  if (!Array.isArray(data) || data.length === 0) {
+-    dom.dbResultsOutput.innerHTML = '<p>По указанным номерам в базе данных ничего не найдено.</p>';
+-    return;
+-  }
+-
+-  let table = '<table class="db-results-table"><thead><tr>';
+-  const headers = Object.keys(data[0] || {});
+-  headers.forEach(h => table += `<th>${h}</th>`);
+-  table += '</tr></thead><tbody>';
+-
+-  data.forEach(row => {
+-    table += '<tr>';
+-    headers.forEach(h => {
+-      table += `<td>${row[h] !== null && row[h] !== undefined ? row[h] : 'NULL'}</td>`;
+-    });
+-    table += '</tr>';
+-  });
++export function displayDbResults(dom, data) {
++  if (!Array.isArray(data) || data.length === 0) {
++    dom.dbResultsOutput.innerHTML = '<p>По указанным номерам в базе данных ничего не найдено.</p>';
++    return;
++  }
++
++  const formatMoscowDate = (value) => {
++    const parsed = new Date(value);
++    if (Number.isNaN(parsed.getTime())) return value;
++    const formatted = parsed.toLocaleString('sv-SE', {
++      timeZone: 'Europe/Moscow',
++      hour12: false,
++    });
++    return `${formatted}+03`;
++  };
++
++  const formatValue = (key, value) => {
++    if (value === null || value === undefined) return 'NULL';
++    if (typeof value !== 'string') return value;
++
++    const isDateField = /(?:_dt|_date)$/i.test(key);
++    if (!isDateField) return value;
++
++    return formatMoscowDate(value);
++  };
++
++  let table = '<table class="db-results-table"><thead><tr>';
++  const headers = Object.keys(data[0] || {});
++  headers.forEach(h => table += `<th>${h}</th>`);
++  table += '</tr></thead><tbody>';
++
++  data.forEach(row => {
++    table += '<tr>';
++    headers.forEach(h => {
++      table += `<td>${formatValue(h, row[h])}</td>`;
++    });
++    table += '</tr>';
++  });
+ 
+   table += '</tbody></table>';
+   dom.dbResultsOutput.innerHTML = table;
+ }
+ 
+ export function render(dom, state) {
+   if (!dom.input) return;
+ 
+   const hasNumbers = state.numbers.length > 0;
+   const hasUUIDs = state.uuids.length > 0;
+   const hasGRZ = state.grz.length > 0;
+ 
+   if (hasNumbers || hasUUIDs || hasGRZ) {
+     dom.result && (dom.result.style.display = 'block');
+     dom.status && (dom.status.className = 'status success');
+ 
+     const parts = [];
+ 
+     // Numbers
+     if (dom.cardNumMain) dom.cardNumMain.style.display = hasNumbers ? 'block' : 'none';
+     if (dom.cardNumSql) dom.cardNumSql.style.display = hasNumbers ? 'block' : 'none';
+     if (dom.cardNumCsv) dom.cardNumCsv.style.display = hasNumbers ? 'block' : 'none';
+ 
+     if (hasNumbers) {
+       dom.output && (dom.output.textContent = state.numbers[0]);

@@ -1,0 +1,146 @@
+js/parser/main.js
+
+Роль: точка входа парсера.
+Что делает:
+
+создаёт dom и использует state;
+
+определяет updateResult() (читать input → извлечь numbers/uuids/grz → render);
+
+создаёт copyActions (набор функций copy…);
+
+(если нужно) публикует window.copyNumber и т.п. для совместимости с inline-HTML onclick;
+
+вешает события (paste/input/enter/db button) через bindEvents;
+
+подключает bridge кнопки (которые шлют CustomEvent в bulk sender);
+
+вызывает updateResult() при старте.
+
+Идея: main.js должен быть коротким — вся логика в модулях.
+
+js/parser/dom.js
+
+Роль: собрать все DOM элементы парсера в одном месте.
+Экспорт: getDom()
+Зачем: удобно и безопасно — не ловить undefined по всему коду.
+
+js/parser/state.js
+
+Роль: состояние парсера (результаты извлечения).
+Хранит:
+
+numbers — номера постановлений/длинные числа;
+
+uuids — UUID’ы;
+
+grz — ГРНЗ.
+
+Почему не window.current…: проще контролировать и не плодить глобальные переменные.
+
+js/parser/extract.js
+
+Роль: чистая логика извлечения данных из текста.
+Содержит:
+
+convertCyrillicToLatin — унификация ГРНЗ;
+
+extractNumbers — достаёт длинные числа/постановления;
+
+extractUUIDs — UUID c дефисами;
+
+extractGRZ — ГРНЗ (кириллица+латиница → латиница).
+
+Важно: это “pure functions”: вход строка → выход массив.
+
+js/parser/clipboard.js
+
+Роль: копирование и UI-эффект “Скопировано”.
+Содержит:
+
+copyToClipboard(text) — через Clipboard API, иначе fallback textarea;
+
+showCopied(element) — временно меняет вид элемента на “✅”.
+
+js/parser/render.js
+
+Роль: отрисовка UI по текущему state.
+Содержит:
+
+render(dom, state) — логика показа/скрытия карточек + заполнение текстов + статус/дебаг;
+
+displayDbResults(dom, data) — рисует таблицу по данным от бэкенда.
+
+Важно: render не должен делать fetch и не должен парсить текст — только отображать.
+
+js/parser/db.js
+
+Роль: работа с backend API для поиска по номерам.
+Экспорт: queryDatabase(dom, numbers)
+Что делает:
+
+показывает контейнер результатов;
+
+показывает “Загрузка…”;
+
+POST на backend;
+
+отдаёт данные в displayDbResults;
+
+ловит ошибки и рисует сообщение.
+
+js/parser/bridge.js
+
+Роль: мост между парсером и bulk sender’ом через CustomEvent.
+Содержит:
+
+getUuidsFromDbResults(dom) — вытаскивает transaction_uuid из таблицы в результатах БД;
+
+getGrnFromGrzOutput(dom) — берёт текущий GRN/ГРНЗ из блока;
+
+bindBridgeButtons(dom) — кнопки:
+
+“использовать UUID” → parsed-uuids-ready
+
+“заполнить GRN режим” → parsed-grn-mode-ready
+
+Почему отдельно: чтобы связь между двумя подсистемами была в одном месте и не расползалась.
+
+js/parser/events.js
+
+Роль: wiring событий DOM для парсера.
+Содержит:
+
+подписку на paste/input → updateResult;
+
+Enter без shift → copy первого найденного (приоритет numbers → uuids → grz);
+
+кнопку “query DB” → queryDatabase.
+
+Почему отдельно: чтобы main.js не был “простынёй”.
+
+3) Как эти две части (parser + sender) живут вместе
+
+Parser извлекает numbers/uuids/grz из текста, может сходить в БД за UUID.
+
+Sender умеет взять список UUID и отправить на API массово.
+
+Связь между ними идёт через:
+
+window.dispatchEvent(new CustomEvent('parsed-uuids-ready', {detail:{uuids}}))
+
+window.dispatchEvent(new CustomEvent('parsed-grn-mode-ready', {detail:{uuid, grn, uuids}}))
+
+А bulk sender слушает эти события в bindWindowEvents().
+
+4) Короткое правило “куда что класть” (чтобы проект не расползался)
+
+extract/parsers/utils — “чистая логика” без DOM и fetch.
+
+render/ui — только отрисовка.
+
+api/db — только сеть.
+
+handlers/events — оркестрация (что по клику происходит).
+
+main.js — только инициализация и сборка зависимостей.
