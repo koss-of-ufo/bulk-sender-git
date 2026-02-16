@@ -1,0 +1,58 @@
+diff a/js-bs-6/handlers.js b/js-bs-6/handlers.js	(rejected hunks)
+@@ -1,43 +1,47 @@
+ // js/handlers.js
+ import { uuidRegex, extractUUIDsFromString, copyToClipboard } from './utils.js';
+ import { parsePanText, parseCSVTextGeneric } from './parsers.js';
+ import { appendLog, setCounters } from './ui.js';
+ import { doFetch } from './api.js';
+ import { sleep, waitWhilePaused } from './utils.js';
+ 
+ export function buildPayloadForRow(dom, row) {
+   const uuid = row.transaction_uuid;
+-  if (dom.modeEl.value === 'pay_type') {
+-    return { transaction_uuid: uuid, pay_type: Number(dom.payTypeEl.value) };
+-  } else if (dom.modeEl.value === 'pan_change') {
+-    return { transaction_uuid: uuid, grn: row.pan || '', comment: dom.commentEl.value.trim() };
+-  } else {
+-    const comment = dom.commentEl.value.trim()
+-      || String(document.getElementById('ticketId')?.value || '').trim();
+-    return { transaction_uuid: uuid, grn: dom.grnEl.value.trim(), comment };
+-  }
++  if (dom.modeEl.value === 'pay_type') {
++    return { transaction_uuid: uuid, pay_type: Number(dom.payTypeEl.value) };
++  } else if (dom.modeEl.value === 'pan_change') {
++    const comment = dom.commentEl.value.trim()
++      || String(document.getElementById('ticketId')?.value || '').trim();
++    const payload = { transaction_uuid: uuid, grn: row.pan || '' };
++    if (comment) payload.comment = comment;
++    return payload;
++  } else {
++    const comment = dom.commentEl.value.trim()
++      || String(document.getElementById('ticketId')?.value || '').trim();
++    return { transaction_uuid: uuid, grn: dom.grnEl.value.trim(), comment };
++  }
+ }
+ 
+ export async function parseSource(dom, state) {
+   state.parsedRows = [];
+   const src = dom.sourceEl.value;
+ 
+   if (src === 'file') {
+     const f = dom.csvFile.files[0];
+     if (!f) { appendLog(dom, 'Нет выбранного файла', 'err'); return; }
+     const text = await f.text();
+ 
+     if (dom.modeEl.value === 'pan_change') {
+       state.parsedRows = parsePanText(text);
+     } else if (dom.fastExtractEl.checked) {
+       const uuids = extractUUIDsFromString(text);
+       state.parsedRows = Array.from(new Set(uuids)).map(uuid => ({ transaction_uuid: uuid }));
+     } else {
+       const parsed = parseCSVTextGeneric(text, dom.useFirstColIfHeaderEl.checked);
+       state.parsedRows = parsed.rows;
+ 
+       if (parsed.header && dom.uuidColEl.value.trim()) {
+         const col = dom.uuidColEl.value.trim();
+         state.parsedRows = state.parsedRows.map(r => ({ transaction_uuid: r[col] || r[Object.keys(r)[0]] || '' }));
+       } else if (parsed.header && !dom.uuidColEl.value.trim()) {
+         const colWithUuid = parsed.header.find(h => parsed.rows.some(r => uuidRegex.test(r[h])));

@@ -1,0 +1,77 @@
+diff a/js-bs-6/parser/bridge.js b/js-bs-6/parser/bridge.js	(rejected hunks)
+@@ -1,48 +1,54 @@
+ // js/parser/bridge.js
+ export function getUuidsFromDbResults(dom) {
+   const container = dom.dbResultsOutput;
+   if (!container) return [];
+ 
+   const table = container.querySelector('table');
+   if (!table) return [];
+ 
+   const ths = Array.from(table.querySelectorAll('thead th'));
+   const idx = ths.findIndex(th => th.textContent.trim().toLowerCase() === 'transaction_uuid');
+   if (idx === -1) return [];
+ 
+   const uuids = Array.from(table.querySelectorAll('tbody tr'))
+     .map(tr => tr.querySelectorAll('td')[idx]?.textContent?.trim())
+     .filter(Boolean);
+ 
+   return Array.from(new Set(uuids));
+ }
+ 
+-export function getGrnFromGrzOutput(dom) {
+-  return (dom.grzOutput?.textContent || '').trim();
+-}
+-
+-export function bindBridgeButtons(dom) {
+-  if (!dom.btnUseParsedUuids || !dom.btnFillGrnMode) {
+-    console.error('Buttons not found in DOM');
+-    return;
+-  }
++export function getGrnFromGrzOutput(dom) {
++  return (dom.grzOutput?.textContent || '').trim();
++}
++
++export function getTicketComment() {
++  const ticketId = document.getElementById('ticketId');
++  return (ticketId?.value || '').trim();
++}
++
++export function bindBridgeButtons(dom) {
++  if (!dom.btnUseParsedUuids || !dom.btnFillGrnMode) {
++    console.error('Buttons not found in DOM');
++    return;
++  }
+ 
+   dom.btnUseParsedUuids.addEventListener('click', () => {
+     const uuids = getUuidsFromDbResults(dom);
+     if (!uuids.length) return alert('UUID не найдены в результатах БД (нажми "📡 Найти постановления в БД")');
+ 
+     window.dispatchEvent(new CustomEvent('parsed-uuids-ready', { detail: { uuids } }));
+   });
+ 
+-  dom.btnFillGrnMode.addEventListener('click', () => {
+-    const uuids = getUuidsFromDbResults(dom);
+-    const grn = getGrnFromGrzOutput(dom);
+-
+-    if (!uuids.length) return alert('UUID не найдены в результатах БД (нажми "📡 Найти постановления в БД")');
+-    if (!grn) return alert('GRN не найден (поле ГРНЗ пустое)');
+-
+-    window.dispatchEvent(new CustomEvent('parsed-grn-mode-ready', {
+-      detail: { uuid: uuids[0], grn, uuids }
+-    }));
+-  });
+-}
++  dom.btnFillGrnMode.addEventListener('click', () => {
++    const uuids = getUuidsFromDbResults(dom);
++    const grn = getGrnFromGrzOutput(dom);
++    const comment = getTicketComment();
++
++    if (!uuids.length) return alert('UUID не найдены в результатах БД (нажми "📡 Найти постановления в БД")');
++    if (!grn) return alert('GRN не найден (поле ГРНЗ пустое)');
++
++    window.dispatchEvent(new CustomEvent('parsed-grn-mode-ready', {
++      detail: { uuid: uuids[0], grn, uuids, comment }
++    }));
++  });
++}
